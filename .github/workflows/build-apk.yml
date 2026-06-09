@@ -3,13 +3,11 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - name: Checkout code
@@ -20,42 +18,20 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
-        echo "=== Installing system dependencies ==="
         sudo apt-get update
         sudo apt-get install -y \
           openjdk-17-jdk \
-          autoconf \
-          automake \
-          libtool \
-          pkg-config \
-          libncurses5-dev \
-          libncursesw5-dev \
-          build-essential \
-          libssl-dev \
-          libffi-dev \
-          wget \
-          curl \
-          unzip \
-          lsb-release
+          autoconf automake libtool pkg-config \
+          libncurses5-dev libncursesw5-dev \
+          build-essential libssl-dev libffi-dev \
+          wget curl unzip
 
-        echo "=== Verifying installations ==="
-        java -version
-        python3 --version
-        pip3 --version
-
-    - name: Install Python dependencies
-      run: |
-        echo "=== Installing Buildozer and Cython ==="
         pip install --upgrade pip
         pip install buildozer cython
 
-        echo "=== Verifying installations ==="
-        buildozer --version
-        cython --version
-
-    - name: Cache Buildozer dependencies
+    - name: Cache Buildozer
       uses: actions/cache@v4
       with:
         path: |
@@ -65,44 +41,34 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildozer-
 
-    - name: Prepare build environment
+    - name: Build APK with verbose logging
       run: |
-        echo "=== Project structure ==="
-        ls -la
-        
-        echo "=== buildozer.spec content ==="
-        cat buildozer.spec
-        
-        echo "=== Creating required directories ==="
-        mkdir -p dist
-
-    - name: Build APK
-      run: |
-        echo "=== Starting Buildozer build ==="
-        
-        # 设置环境变量
-        export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+        # Don't use Chinese mirror for now - use default PyPI
         export ANDROID_SDK_HOME=$HOME/.buildozer/android/platform/android-sdk
         
-        echo "=== Environment variables ==="
-        echo "PIP_INDEX_URL: $PIP_INDEX_URL"
-        echo "ANDROID_SDK_HOME: $ANDROID_SDK_HOME"
+        echo "Starting Buildozer build..."
+        echo "This may take 30-40 minutes for first build."
         
-        # 构建 APK（详细模式）
-        echo "=== Running buildozer android debug ==="
-        buildozer -v android debug
+        # Run buildozer with verbose output
+        buildozer -v android debug 2>&1 | tee build.log
         
-        echo "=== Build completed ==="
-        
-        # 检查输出
-        echo "=== Checking output directory ==="
-        ls -la dist/ || echo "dist directory not found!"
-        
-        # 查找 APK 文件
-        echo "=== Finding APK files ==="
-        find . -name "*.apk" 2>/dev/null || echo "No APK files found!"
+        # Show last 100 lines of build log
+        echo "=== Last 100 lines of build log ==="
+        tail -n 100 build.log
 
-    - name: Upload APK artifact
+    - name: Check build output
+      if: always()
+      run: |
+        echo "=== Checking dist directory ==="
+        ls -la dist/ || echo "dist directory not found"
+        
+        echo "=== Finding APK files ==="
+        find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
+        
+        echo "=== Build log (last 50 lines) ==="
+        tail -n 50 build.log || echo "No build log found"
+
+    - name: Upload APK
       if: success()
       uses: actions/upload-artifact@v4
       with:
@@ -110,20 +76,10 @@ jobs:
         path: dist/*.apk
         retention-days: 90
 
-    - name: Upload build logs on failure
+    - name: Upload logs on failure
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: build-logs
-        path: |
-          .buildozer/android/platform/build-*/dists/*/build.log
-          .buildozer/logs/
+        name: build-error-logs
+        path: build.log
         retention-days: 7
-
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: dist/*.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

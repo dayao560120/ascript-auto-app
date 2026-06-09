@@ -17,7 +17,7 @@ version.regex = __version__
 version.filename = %(source.dir)s/main_app.py
 
 # 依赖包
-requirements = python3,kivy==2.2.1,android,plyer
+requirements = python3,kivy==2.2.1
 
 # Android 配置
 orientation = portrait
