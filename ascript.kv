@@ -1,0 +1,234 @@
+#:kivy 2.0.0
+
+<ControlPanel>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+
+        # 标题栏
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            Label:
+                text: 'AScript 自动化控制'
+                font_size: '20sp'
+                bold: True
+            Button:
+                text: '设置'
+                size_hint_x: None
+                width: 80
+                on_release: app.root.current = 'settings'
+
+        # 状态显示
+        CardView:
+            size_hint_y: None
+            height: 80
+            elevation: 3
+            BoxLayout:
+                padding: 10
+                spacing: 10
+                orientation: 'vertical'
+                Label:
+                    text: '当前状态'
+                    font_size: '14sp'
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.status_text
+                    font_size: '18sp'
+                    bold: True
+                    color: [0, 0.7, 0, 1] if not root.is_running else [1, 0.5, 0, 1]
+
+        # 控制按钮
+        BoxLayout:
+            size_hint_y: None
+            height: 60
+            spacing: 10
+            Button:
+                text: '开始执行'
+                disabled: root.is_running
+                background_color: [0, 0.8, 0, 1] if not root.is_running else [0.5, 0.5, 0.5, 1]
+                on_release: root.start_task()
+            Button:
+                text: '停止'
+                disabled: not root.is_running
+                background_color: [0.8, 0, 0, 1] if root.is_running else [0.5, 0.5, 0.5, 1]
+                on_release: root.stop_task()
+
+        # 任务结果
+        CardView:
+            size_hint_y: None
+            height: 60
+            elevation: 2
+            BoxLayout:
+                padding: 10
+                Label:
+                    text: f'执行结果: {root.task_result}' if root.task_result else '等待执行...'
+                    font_size: '16sp'
+
+        # 日志区域
+        Label:
+            text: '执行日志:'
+            size_hint_y: None
+            height: 25
+            font_size: '14sp'
+            halign: 'left'
+
+        ScrollView:
+            BoxLayout:
+                id: log_container
+                size_hint_y: None
+                height: log_label.texture_size[1]
+                padding: 5
+                Label:
+                    id: log_label
+                    text: root.log_text
+                    font_size: '12sp'
+                    halign: 'left'
+                    valign: 'top'
+                    text_size: self.width, None
+                    color: [0.2, 0.2, 0.2, 1]
+
+        # 底部按钮
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 10
+            Button:
+                text: '清空日志'
+                size_hint_x: 0.3
+                on_release: root.clear_log()
+            Button:
+                text: '返回主菜单'
+                size_hint_x: 0.7
+                on_release: pass
+
+
+<SettingsScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+
+        # 标题
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            Button:
+                text: '< 返回'
+                size_hint_x: None
+                width: 80
+                on_release: app.root.current = 'control'
+            Label:
+                text: '设置'
+                font_size: '20sp'
+                bold: True
+
+        # 目标文本设置
+        CardView:
+            size_hint_y: None
+            height: 80
+            elevation: 2
+            BoxLayout:
+                padding: 10
+                orientation: 'vertical'
+                Label:
+                    text: '目标元素文本'
+                    font_size: '16sp'
+                    size_hint_y: None
+                    height: 30
+                TextInput:
+                    id: target_input
+                    text: root.target_text
+                    hint_text: '输入要查找的元素文本'
+                    size_hint_y: None
+                    height: 40
+                    multiline: False
+                    on_text: root.target_text = self.text
+
+        # 延时设置
+        CardView:
+            size_hint_y: None
+            height: 80
+            elevation: 2
+            BoxLayout:
+                padding: 10
+                orientation: 'vertical'
+                Label:
+                    text: '点击后延时（秒）'
+                    font_size: '16sp'
+                    size_hint_y: None
+                    height: 30
+                TextInput:
+                    id: delay_input
+                    text: root.click_delay
+                    hint_text: '输入延时秒数'
+                    size_hint_y: None
+                    height: 40
+                    input_filter: 'int'
+                    multiline: False
+                    on_text: root.click_delay = self.text
+
+        # 重试设置
+        CardView:
+            size_hint_y: None
+            height: 80
+            elevation: 2
+            BoxLayout:
+                padding: 10
+                orientation: 'vertical'
+                Label:
+                    text: '最大重试次数'
+                    font_size: '16sp'
+                    size_hint_y: None
+                    height: 30
+                TextInput:
+                    id: retry_input
+                    text: root.retry_count
+                    hint_text: '输入重试次数'
+                    size_hint_y: None
+                    height: 40
+                    input_filter: 'int'
+                    multiline: False
+                    on_text: root.retry_count = self.text
+
+        # 启用重试开关
+        CardView:
+            size_hint_y: None
+            height: 70
+            elevation: 2
+            BoxLayout:
+                padding: 10
+                Label:
+                    text: '启用自动重试'
+                    font_size: '16sp'
+                Switch:
+                    active: root.enable_retry
+                    on_active: root.enable_retry = self.active
+
+        # 保存按钮
+        BoxLayout:
+            size_hint_y: None
+            height: 60
+            spacing: 10
+            Button:
+                text: '重置'
+                background_color: [0.5, 0.5, 0.5, 1]
+                on_release: root.reset_settings()
+            Button:
+                text: '保存设置'
+                background_color: [0, 0.6, 1, 1]
+                on_release: root.save_settings()
+
+        # 说明信息
+        Label:
+            text: |
+                提示：
+                - 目标文本：要查找并点击的UI元素文本
+                - 点击延时：点击后等待的时间
+                - 重试次数：失败时自动重试的最大次数
+            font_size: '12sp'
+            halign: 'left'
+            text_size: self.width, None
+            color: [0.5, 0.5, 0.5, 1]
