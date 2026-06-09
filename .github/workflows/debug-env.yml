@@ -1,0 +1,70 @@
+name: Debug Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Check basic environment
+      run: |
+        echo "=== System Info ==="
+        uname -a
+        df -h
+        free -m
+        
+        echo "=== Python ==="
+        which python3
+        python3 --version
+        
+        echo "=== Pip ==="
+        pip3 --version
+        
+        echo "=== Java ==="
+        which java || echo "Java not installed"
+
+    - name: Install minimal deps
+      run: |
+        echo "Installing OpenJDK..."
+        sudo apt-get update -qq
+        sudo apt-get install -y openjdk-17-jdk
+        
+        echo "Installing Buildozer..."
+        pip install buildozer cython
+        
+        echo "Verifying..."
+        java -version
+        buildozer --version
+
+    - name: Test simple command
+      run: |
+        echo "=== Testing a simple command ==="
+        echo "Hello from GitHub Actions!"
+        
+        echo "=== Listing files ==="
+        ls -la
+        
+        echo "=== Checking buildozer.spec ==="
+        if [ -f buildozer.spec ]; then
+          echo "buildozer.spec exists"
+          head -5 buildozer.spec
+        else
+          echo "ERROR: buildozer.spec not found!"
+        fi
+
+    - name: Try buildozer version check
+      run: |
+        echo "=== Buildozer version ==="
+        buildozer --version
+        
+        echo "=== Buildozer help ==="
+        buildozer --help | head -20
