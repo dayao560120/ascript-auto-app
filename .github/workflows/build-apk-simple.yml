@@ -1,0 +1,57 @@
+name: Build APK Simple
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          openjdk-17-jdk \
+          autoconf automake libtool pkg-config \
+          libncurses5-dev libncursesw5-dev \
+          build-essential libssl-dev libffi-dev \
+          wget curl unzip git-core
+        pip install --upgrade pip
+        pip install buildozer cython
+
+    - name: Build with Buildozer
+      run: |
+        echo "Starting build..."
+        # Just use simple command without redirects
+        buildozer android debug deploy
+      continue-on-error: true
+
+    - name: Check results
+      run: |
+        echo "=== Looking for APK files ==="
+        find . -name "*.apk" -type f 2>/dev/null
+        
+        echo "=== dist directory ==="
+        ls -la dist/ 2>/dev/null || echo "No dist dir"
+        
+        echo "=== .buildozer logs ==="
+        find .buildozer -name "*.log" -type f 2>/dev/null | head -5
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: apk-or-logs
+        path: |
+          dist/*.apk
+          .buildozer/**/*.log

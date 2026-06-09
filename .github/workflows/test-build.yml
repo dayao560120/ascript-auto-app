@@ -1,0 +1,48 @@
+name: Test Build Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install deps
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq openjdk-17-jdk > /dev/null 2>&1
+        pip install buildozer cython -q
+
+    - name: Test Buildozer init
+      run: |
+        echo "=== Testing Buildozer ==="
+        buildozer init
+        ls -la
+        cat buildozer.spec
+
+    - name: Test Buildozer configure
+      run: |
+        echo "=== Testing Buildozer configure ==="
+        buildozer configure || echo "Configure failed but continuing"
+
+    - name: Show environment
+      run: |
+        echo "=== Java ==="
+        java -version 2>&1 || echo "Java not found"
+        echo "=== Python ==="
+        python3 --version
+        echo "=== Buildozer ==="
+        buildozer --version
+        echo "=== Directory structure ==="
+        find . -type f -name "*.py" | head -20
+        echo "=== .buildozer directory ==="
+        ls -la .buildozer/ 2>/dev/null || echo ".buildozer not found"
