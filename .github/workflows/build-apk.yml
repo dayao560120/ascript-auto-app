@@ -20,8 +20,9 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
+        echo "=== Installing system dependencies ==="
         sudo apt-get update
         sudo apt-get install -y \
           openjdk-17-jdk \
@@ -36,9 +37,23 @@ jobs:
           libffi-dev \
           wget \
           curl \
-          unzip
+          unzip \
+          lsb-release
 
+        echo "=== Verifying installations ==="
+        java -version
+        python3 --version
+        pip3 --version
+
+    - name: Install Python dependencies
+      run: |
+        echo "=== Installing Buildozer and Cython ==="
+        pip install --upgrade pip
         pip install buildozer cython
+
+        echo "=== Verifying installations ==="
+        buildozer --version
+        cython --version
 
     - name: Cache Buildozer dependencies
       uses: actions/cache@v4
@@ -50,21 +65,60 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildozer-
 
+    - name: Prepare build environment
+      run: |
+        echo "=== Project structure ==="
+        ls -la
+        
+        echo "=== buildozer.spec content ==="
+        cat buildozer.spec
+        
+        echo "=== Creating required directories ==="
+        mkdir -p dist
+
     - name: Build APK
       run: |
-        # 使用国内镜像加速
+        echo "=== Starting Buildozer build ==="
+        
+        # 设置环境变量
         export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
         export ANDROID_SDK_HOME=$HOME/.buildozer/android/platform/android-sdk
-
-        # 构建 APK
-        buildozer android debug
+        
+        echo "=== Environment variables ==="
+        echo "PIP_INDEX_URL: $PIP_INDEX_URL"
+        echo "ANDROID_SDK_HOME: $ANDROID_SDK_HOME"
+        
+        # 构建 APK（详细模式）
+        echo "=== Running buildozer android debug ==="
+        buildozer -v android debug
+        
+        echo "=== Build completed ==="
+        
+        # 检查输出
+        echo "=== Checking output directory ==="
+        ls -la dist/ || echo "dist directory not found!"
+        
+        # 查找 APK 文件
+        echo "=== Finding APK files ==="
+        find . -name "*.apk" 2>/dev/null || echo "No APK files found!"
 
     - name: Upload APK artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: ascript-auto-apk
         path: dist/*.apk
         retention-days: 90
+
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          .buildozer/android/platform/build-*/dists/*/build.log
+          .buildozer/logs/
+        retention-days: 7
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
